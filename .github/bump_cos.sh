@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-root_dir=$(git rev-parse --show-toplevel)
+root_dir=$(git rev-parse --show-toplevel)/images
 
 last_snapshot() {
     echo $(skopeo list-tags docker://$1 | jq -rc '.Tags | map(select(. | contains("-repository.yaml"))) | sort | .[-1]' | sed "s/-repository.yaml//g")

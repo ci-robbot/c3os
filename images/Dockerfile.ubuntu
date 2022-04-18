@@ -55,7 +55,7 @@ RUN apt install -y \
 	rsync \
         linux-image-generic && apt-get clean
 # Copy the luet config file pointing to the upgrade repository
-COPY repositories.yaml.ubuntu /etc/luet/luet.yaml
+COPY images/repositories.yaml.ubuntu /etc/luet/luet.yaml
 
 # Copy luet from the official images
 COPY --from=luet /usr/bin/luet /usr/bin/luet
@@ -80,7 +80,7 @@ RUN systemctl enable ssh
 RUN systemctl enable NetworkManager.service
 RUN echo "auto lo" > /etc/network/interfaces
 RUN echo "iface lo inet loopback" >> /etc/network/interfaces
-COPY overlay/files/ /
+COPY images/overlay/files/ /
 
 # Fixup sudo perms
 RUN chown root:root /usr/bin/sudo && chmod 4755 /usr/bin/sudo

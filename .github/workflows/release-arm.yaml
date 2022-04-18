@@ -83,7 +83,7 @@ jobs:
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: ./
-          file: ./${{ matrix.dockerfile }}
+          file: ./images/${{ matrix.dockerfile }}
           platforms: ${{ matrix.platforms }}
           build-args: |
             C3OS_VERSION=${{ steps.versions.outputs.c3os_version }}

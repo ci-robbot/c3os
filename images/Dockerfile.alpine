@@ -121,7 +121,7 @@ RUN rc-update add sshd boot && \
     rc-update add ntpd boot
 
 # Copy the luet config file pointing to the upgrade repository
-COPY repositories.yaml /etc/luet/luet.yaml
+COPY images/repositories.yaml /etc/luet/luet.yaml
 
 # Copy luet from the official images
 COPY --from=luet /usr/bin/luet /usr/bin/luet
@@ -145,8 +145,8 @@ RUN INSTALL_K3S_SKIP_START="true" INSTALL_K3S_SKIP_ENABLE="true" sh installer.sh
 RUN INSTALL_K3S_SKIP_START="true" INSTALL_K3S_SKIP_ENABLE="true" sh installer.sh agent
 RUN rm -rf installer.sh
 
-COPY overlay/files/ /
-COPY overlay/files-alpine/ /
+COPY images/overlay/files/ /
+COPY images/overlay/files-alpine/ /
 
 RUN mkdir -p /etc/runlevels/default && \
       ln -sf /etc/init.d/cos-setup-boot /etc/runlevels/default/cos-setup-boot  && \

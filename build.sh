@@ -10,9 +10,9 @@ docker build --build-arg C3OS_VERSION=$C3OS_VERSION \
              --build-arg OS_LABEL=$OS_LABEL \
              --build-arg OS_NAME=$OS_NAME \
              -t $IMAGE \
-             -f Dockerfile.${FLAVOR} ./
+             -f images/Dockerfile.${FLAVOR} ./
 
 docker run -v $PWD:/cOS \
            -v /var/run:/var/run \
            --entrypoint /usr/bin/luet-makeiso \
-           -i --rm quay.io/costoolkit/toolchain ./iso.yaml --image $IMAGE --output $ISO
+           -i --rm quay.io/costoolkit/toolchain ./images/iso.yaml --image $IMAGE --output $ISO
