@@ -30,6 +30,18 @@ stages:
               linux (loop0)$kernel $kernelcmd ${extra_cmdline} ${extra_recovery_cmdline} vga=795 nomodeset c3os.remote_recovery_mode
               initrd (loop0)$initramfs
             }
+
+            set extra_active_cmdline="rd.emergency=reboot rd.shell=0 panic=5"
+            set custom="/c3osenv"
+            search --no-floppy --file --set=custom_blk "${custom}"
+            if [ "${custom_blk}" ]; then
+              load_env -f "(${custom_blk})${custom}"
+            fi
+            set customgrub="/c3osgrub"
+            search --no-floppy --file --set=custom_grub_blk "${customgrub}"
+            if [ "${custom_grub_blk}" ]; then
+              source "(${custom_grub_blk})${customgrub}"
+            fi
     - name: "umount state"
       commands:
       - |

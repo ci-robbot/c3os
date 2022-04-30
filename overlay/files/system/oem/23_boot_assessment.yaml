@@ -1,0 +1,64 @@
+name: "Boot assessment"
+stages:
+    boot:
+    - name: "Remove sentinels"
+      if: '[ ! -f "/run/cos/recovery_mode" ] && cat /proc/cmdline | grep -v "passive.img"'
+      commands:
+      - |
+          sudo mount -o rw,remount /run/initramfs/cos-state
+          grub2-editenv /run/initramfs/cos-state/c3osenv set osupgrade=
+          grub2-editenv /run/initramfs/cos-state/c3osenv set tentative=
+          sudo mount -o ro,remount /run/initramfs/cos-state
+    - name: "Check if we are booting after a failed upgrade and create sentinel file"
+      if: |
+         cat /proc/cmdline | grep -q "upgrade_failure"
+      commands:
+       - |
+            echo >> /etc/issue.d/02-message
+            echo "Warning: A boot failure was detected after upgrade, booting from fallback." >> /etc/issue.d/02-message
+            echo >> /etc/issue.d/02-message
+            touch /run/c3os_upgrade_failure
+    after-upgrade:
+    - name: "Set upgrade"
+      commands:
+      - |
+          STATEDIR=/tmp/mnt/STATE
+          STATE=$(blkid -L COS_STATE || true)
+          mkdir -p $STATEDIR || true
+          mount ${STATE} $STATEDIR
+          grub2-editenv /tmp/mnt/STATE/c3osenv set osupgrade=done
+          umount /tmp/mnt/STATE
+    - if: '[ -d "/run/initramfs/cos-state" ]'
+      commands:
+      - |
+          sudo mount -o rw,remount /run/initramfs/cos-state
+          grub2-editenv /run/initramfs/cos-state/c3osenv set osupgrade=done
+          sudo mount -o ro,remount /run/initramfs/cos-state
+    after-install:
+    - name: "Mount state"
+      commands:
+      - |
+          STATEDIR=/tmp/mnt/STATE
+          STATE=$(blkid -L COS_STATE || true)
+          mkdir -p $STATEDIR || true
+          mount ${STATE} $STATEDIR
+    - name: "Add c3osgrub"
+      files:
+       - path: "/tmp/mnt/STATE/c3osgrub"
+         owner: 0
+         group: 0
+         permsisions: 0600
+         content: |
+          if [ "${osupgrade}" = "done" ]; then
+            if [ "${tentative}" = "try" ]; then
+              set default="fallback"
+              set extra_passive_cmdline="upgrade_failure"
+            else
+              set tentative="try"
+              save_env -f "(${custom_blk})${custom}" tentative
+            fi
+          fi
+    - name: "umount state"
+      commands:
+      - |
+          umount /tmp/mnt/STATE
