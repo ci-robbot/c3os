@@ -238,21 +238,27 @@ var _ = Describe("c3os", func() {
 			defer machine.RestoreSnapshot()
 			currentVersion, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
 
+			cmdline, _ := machine.SSHCommand("sudo cat /proc/cmdline")
+			Expect(cmdline).To(ContainSubstring("rd.emergency=reboot rd.shell=0 panic=5"))
+
 			out, _ := machine.SSHCommand("sudo c3os upgrade v1.21.4-32")
 			Expect(out).To(ContainSubstring("Upgrade completed"))
+			fmt.Println(out)
 
 			// Break the upgrade
 			out, _ = machine.SSHCommand("sudo mount -o rw,remount /run/initramfs/cos-state")
 			fmt.Println(out)
+
+			out, _ = machine.SSHCommand("sudo cat /run/initramfs/cos-state/c3osenv")
+			Expect(out).To(ContainSubstring("osupgrade=done"))
 
 			out, _ = machine.SSHCommand("sudo mkdir -p /tmp/mnt/STATE")
 			fmt.Println(out)
 
 			machine.SSHCommand("sudo mount /run/initramfs/cos-state/cOS/active.img /tmp/mnt/STATE")
 
-			for _, d := range []string{"bin", "usr", "etc", "sbin", "lib"} {
+			for _, d := range []string{"usr/lib/systemd"} {
 				out, _ = machine.SSHCommand("sudo rm -rfv /tmp/mnt/STATE/" + d)
-				fmt.Println(out)
 			}
 
 			out, _ = machine.SSHCommand("sudo ls -liah /tmp/mnt/STATE/")
@@ -266,12 +272,13 @@ var _ = Describe("c3os", func() {
 			v, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
 			Expect(v).To(Equal(currentVersion))
 
-			cmdline, _ := machine.SSHCommand("sudo cat /proc/cmdline")
-
+			cmdline, _ = machine.SSHCommand("sudo cat /proc/cmdline")
 			Expect(cmdline).To(And(ContainSubstring("passive.img"), ContainSubstring("upgrade_failure")), cmdline)
 
-			out, _ = machine.SSHCommand("sudo ls -liah /run")
-			Expect(out).To(And(ContainSubstring("c3os_upgrade_failure")), out)
+			Eventually(func() string {
+				out, _ := machine.SSHCommand("sudo ls -liah /run")
+				return out
+			}, 5*time.Minute, 10*time.Second).Should(ContainSubstring("c3os_upgrade_failure"))
 		})
 
 		//2: Delete /boot -> should go in fallback without sentinel (grub fallback)
@@ -291,7 +298,7 @@ var _ = Describe("c3os", func() {
 
 			machine.SSHCommand("sudo mount /run/initramfs/cos-state/cOS/active.img /tmp/mnt/STATE")
 
-			for _, d := range []string{"boot"} {
+			for _, d := range []string{"bin", "usr", "etc", "sbin", "lib"} {
 				machine.SSHCommand("sudo rm -rfv /tmp/mnt/STATE/" + d)
 			}
 

@@ -1,8 +1,10 @@
 name: "Boot assessment"
 stages:
+    # TODO: anchor to after-reset, after-upgrade
     boot:
     - name: "Remove sentinels"
-      if: '[ ! -f "/run/cos/recovery_mode" ] && cat /proc/cmdline | grep -v "passive.img"'
+      if: |
+          cat /proc/cmdline | grep -q "active.img"
       commands:
       - |
           sudo mount -o rw,remount /run/initramfs/cos-state
@@ -11,13 +13,13 @@ stages:
           sudo mount -o ro,remount /run/initramfs/cos-state
     - name: "Check if we are booting after a failed upgrade and create sentinel file"
       if: |
-         cat /proc/cmdline | grep -q "upgrade_failure"
+          cat /proc/cmdline | grep -q "upgrade_failure"
       commands:
        - |
-            echo >> /etc/issue.d/02-message
-            echo "Warning: A boot failure was detected after upgrade, booting from fallback." >> /etc/issue.d/02-message
-            echo >> /etc/issue.d/02-message
-            touch /run/c3os_upgrade_failure
+          echo >> /etc/issue.d/02-message
+          echo "Warning: A boot failure was detected after upgrade, booting from fallback." >> /etc/issue.d/02-message
+          echo >> /etc/issue.d/02-message
+          touch /run/c3os_upgrade_failure
     after-upgrade:
     - name: "Set upgrade"
       commands:

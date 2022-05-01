@@ -1,5 +1,6 @@
 name: "Additional grub menu entries"
 stages:
+    # TODO: anchor to after-reset, after-upgrade
     after-install:
     - name: "Mount state"
       commands:
