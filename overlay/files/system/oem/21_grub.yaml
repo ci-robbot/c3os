@@ -10,6 +10,7 @@ stages:
           mount ${STATE} $STATEDIR
     - name: "Add grubmenu"
       files:
+       # TODO: boot assessment is part of grubmenu, should be a separate file
        - path: "/tmp/mnt/STATE/grubmenu"
          owner: 0
          group: 0

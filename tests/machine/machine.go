@@ -18,8 +18,16 @@ import (
 var ID string
 var TempDir string
 
-func Delete() {
+func PowerOff() {
 	utils.SH(fmt.Sprintf(`VBoxManage controlvm "%s" poweroff`, ID))
+}
+
+func Start() {
+	utils.SH(fmt.Sprintf(`VBoxManage startvm "%s" --type headless`, ID))
+}
+
+func Delete() {
+	PowerOff()
 	utils.SH(fmt.Sprintf(`VBoxManage unregistervm "%s"`, ID))
 	utils.SH(fmt.Sprintf(`VBoxManage closemedium disk "%s"`, filepath.Join(TempDir, "disk.vdi")))
 	os.RemoveAll(TempDir)
@@ -278,4 +286,18 @@ func GatherLog(logPath string) {
 	_ = os.Chmod(fmt.Sprintf("logs/%s", baseName), 0666)
 	fmt.Printf("File %s copied!\n", baseName)
 
+}
+
+func Snapshot() error {
+	out, err := utils.SH(fmt.Sprintf(`VBoxManage snapshot "%s" take snap`, ID))
+	fmt.Println(out)
+	return err
+}
+
+func RestoreSnapshot() error {
+	PowerOff()
+	out, err := utils.SH(fmt.Sprintf(`VBoxManage snapshot "%s" restore snap`, ID))
+	fmt.Println(out)
+	Start()
+	return err
 }

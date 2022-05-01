@@ -79,7 +79,6 @@ var _ = Describe("c3os", func() {
 	})
 
 	Context("first-boot", func() {
-
 		It("has default services on", func() {
 			if os.Getenv("FLAVOR") == "alpine" {
 				out, _ := machine.SSHCommand("sudo rc-status")
@@ -202,7 +201,12 @@ var _ = Describe("c3os", func() {
 			))
 		})
 
+	})
+
+	Context("upgrades", func() {
 		It("upgrades to a specific version", func() {
+			machine.Snapshot()
+			defer machine.RestoreSnapshot()
 			version, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
 
 			out, _ := machine.SSHCommand("sudo c3os upgrade v1.21.4-32")
@@ -215,6 +219,97 @@ var _ = Describe("c3os", func() {
 
 			version2, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
 			Expect(version).ToNot(Equal(version2))
+		})
+	})
+
+	Context("Fallback", func() {
+		It("snapshot restored", func() {
+			version, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
+			Expect(version).ToNot(ContainSubstring("v1.21.4-32"))
+			fmt.Println(version)
+
+		})
+
+		//1: Delete from active.img all except /boot -> should go in fallback with upgrade_failed in /run
+		It("boots in fallback when rootfs is damaged", func() {
+			defer machine.RestoreSnapshot()
+			currentVersion, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
+
+			out, _ := machine.SSHCommand("sudo c3os upgrade v1.21.4-32")
+			Expect(out).To(ContainSubstring("Upgrade completed"))
+
+			// Break the upgrade
+			out, _ = machine.SSHCommand("sudo mount -o rw,remount /run/initramfs/cos-state")
+			fmt.Println(out)
+
+			out, _ = machine.SSHCommand("sudo mkdir -p /tmp/mnt/STATE")
+			fmt.Println(out)
+
+			machine.SSHCommand("sudo mount /run/initramfs/cos-state/cOS/active.img /tmp/mnt/STATE")
+
+			for _, d := range []string{"bin", "usr", "etc", "sbin", "lib"} {
+				out, _ = machine.SSHCommand("sudo rm -rfv /tmp/mnt/STATE/" + d)
+				fmt.Println(out)
+			}
+
+			out, _ = machine.SSHCommand("sudo ls -liah /tmp/mnt/STATE/")
+			fmt.Println(out)
+
+			out, _ = machine.SSHCommand("sudo umount /tmp/mnt/STATE")
+
+			machine.Restart()
+			machine.EventuallyConnects(700)
+
+			v, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
+			Expect(v).To(Equal(currentVersion))
+
+			cmdline, _ := machine.SSHCommand("sudo cat /proc/cmdline")
+
+			Expect(cmdline).To(And(ContainSubstring("passive.img"), ContainSubstring("upgrade_failure")), cmdline)
+
+			out, _ = machine.SSHCommand("sudo ls -liah /run")
+			Expect(out).To(And(ContainSubstring("c3os_upgrade_failure")), out)
+		})
+
+		//2: Delete /boot -> should go in fallback without sentinel (grub fallback)
+		It("boots in fallback when boot of rootfs is damaged", func() {
+			defer machine.RestoreSnapshot()
+			currentVersion, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
+
+			out, _ := machine.SSHCommand("sudo c3os upgrade v1.21.4-32")
+			Expect(out).To(ContainSubstring("Upgrade completed"))
+
+			// Break the upgrade
+			out, _ = machine.SSHCommand("sudo mount -o rw,remount /run/initramfs/cos-state")
+			fmt.Println(out)
+
+			out, _ = machine.SSHCommand("sudo mkdir -p /tmp/mnt/STATE")
+			fmt.Println(out)
+
+			machine.SSHCommand("sudo mount /run/initramfs/cos-state/cOS/active.img /tmp/mnt/STATE")
+
+			for _, d := range []string{"boot"} {
+				machine.SSHCommand("sudo rm -rfv /tmp/mnt/STATE/" + d)
+			}
+
+			out, _ = machine.SSHCommand("sudo ls -liah /tmp/mnt/STATE/")
+			fmt.Println(out)
+
+			out, _ = machine.SSHCommand("sudo umount /tmp/mnt/STATE")
+
+			machine.Restart()
+
+			machine.EventuallyConnects(700)
+
+			v, _ := machine.SSHCommand("source /etc/os-release; echo $VERSION")
+			Expect(v).To(Equal(currentVersion))
+
+			cmdline, _ := machine.SSHCommand("sudo cat /proc/cmdline")
+			Expect(cmdline).To(And(ContainSubstring("passive.img")), cmdline)
+
+			// We fallback from grub here, no sentinel from boot assessment
+			out, _ = machine.SSHCommand("sudo ls -liah /run")
+			Expect(out).ToNot(And(ContainSubstring("c3os_upgrade_failure")), out)
 		})
 	})
 })
