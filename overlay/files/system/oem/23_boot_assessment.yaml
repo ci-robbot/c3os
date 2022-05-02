@@ -1,7 +1,7 @@
 name: "Boot assessment"
 stages:
     # TODO: anchor to after-reset, after-upgrade
-    boot:
+    boot.before:
     - name: "Remove sentinels"
       if: |
           cat /proc/cmdline | grep -q "active.img"
